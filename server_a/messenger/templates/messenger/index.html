@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Server A Messenger</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f9;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+        }
+
+        h1 {
+            color: #333;
+            font-size: 2em;
+            margin-bottom: 20px;
+        }
+
+        #chat-container {
+            background-color: #fff;
+            border: 2px solid #ddd;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            width: 350px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .message {
+            padding: 10px;
+            border-radius: 5px;
+            margin: 5px 0;
+            font-size: 1.1em;
+        }
+
+        .sent {
+            background-color: #d1e7dd;
+            text-align: right;
+        }
+
+        .received {
+            background-color: #f8d7da;
+            text-align: left;
+        }
+
+        form {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-top: 15px;
+        }
+
+        #inputMessage {
+            padding: 10px;
+            font-size: 1em;
+            width: 250px;
+            margin-bottom: 15px;
+            border: 2px solid #ccc;
+            border-radius: 4px;
+        }
+
+        button {
+            padding: 10px 15px;
+            font-size: 1em;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            width: 150px;
+        }
+
+        button:hover {
+            background-color: #45a049;
+        }
+    </style>
+</head>
+<body>
+    <h1>Chat</h1>
+    <div id="chat-container"></div>
+    <form id="messageForm">
+        <input type="text" id="inputMessage" placeholder="Type a message" required>
+        <button type="submit">Send</button>
+        <input type="hidden" id="csrf_token" value="{{ csrf_token }}">
+    </form>
+
+    <script>
+        const protocol = window.location.protocol === "https:" ? "wss://" : "ws://";
+        const host = window.location.host;
+        const wsUrl = protocol + host + "/ws/messenger/";
+        const ws = new WebSocket(wsUrl);
+        const chatContainer = document.getElementById("chat-container");
+        const postMessageUrl = "{{ post_message_url }}";
+
+        ws.onmessage = function(event) {
+            try {
+                const data = JSON.parse(event.data);
+                appendMessage(data.message, "received");
+            } catch (error) {
+                console.error("Error parsing message:", error);
+            }
+        };
+
+        function appendMessage(message, type) {
+            const messageDiv = document.createElement("div");
+            messageDiv.classList.add("message", type);
+            messageDiv.textContent = message;
+            chatContainer.appendChild(messageDiv);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+
+        function getCSRFToken() {
+            return document.getElementById("csrf_token").value;
+        }
+
+        document.getElementById("messageForm").addEventListener("submit", function(event) {
+            event.preventDefault();
+            const message = document.getElementById("inputMessage").value.trim();
+            if (!message) return;
+
+            appendMessage(message, "sent");
+
+            fetch(postMessageUrl, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/x-www-form-urlencoded",
+                    "X-CSRFToken": getCSRFToken()
+                },
+                body: new URLSearchParams({ message: message })
+            })
+            .then(response => response.json())
+            .then(data => {
+                console.log("Message sent:", data);
+                document.getElementById("inputMessage").value = "";
+            })
+            .catch(error => console.error("Error sending message:", error));
+        });
+    </script>
+</body>
+</html>
