@@ -31,6 +31,7 @@
             width: 350px;
             max-height: 400px;
             overflow-y: auto;
+            position: relative;
         }
 
         .message {
@@ -48,6 +49,13 @@
         .received {
             background-color: #f8d7da;
             text-align: left;
+        }
+
+        .empty-message {
+            text-align: center;
+            color: #888;
+            font-size: 1.2em;
+            margin-top: 10px;
         }
 
         form {
@@ -84,7 +92,9 @@
 </head>
 <body>
     <h1>Chat</h1>
-    <div id="chat-container"></div>
+    <div id="chat-container">
+        <p id="emptyMessage" class="empty-message">Wait new message...</p>
+    </div>
     <form id="messageForm">
         <input type="text" id="inputMessage" placeholder="Type a message" required>
         <button type="submit">Send</button>
@@ -97,7 +107,16 @@
         const wsUrl = protocol + host + "/ws/messenger/";
         const ws = new WebSocket(wsUrl);
         const chatContainer = document.getElementById("chat-container");
+        const emptyMessage = document.getElementById("emptyMessage");
         const postMessageUrl = "{{ post_message_url }}";
+
+        function updateEmptyMessage() {
+            if (chatContainer.children.length > 1) {
+                emptyMessage.style.display = "none";
+            } else {
+                emptyMessage.style.display = "block";
+            }
+        }
 
         ws.onmessage = function(event) {
             try {
@@ -114,6 +133,7 @@
             messageDiv.textContent = message;
             chatContainer.appendChild(messageDiv);
             chatContainer.scrollTop = chatContainer.scrollHeight;
+            updateEmptyMessage();
         }
 
         function getCSRFToken() {
@@ -126,7 +146,7 @@
             if (!message) return;
 
             appendMessage(message, "sent");
-
+            console.log("postMessageUrl:", postMessageUrl);
             fetch(postMessageUrl, {
                 method: "POST",
                 headers: {
@@ -142,6 +162,8 @@
             })
             .catch(error => console.error("Error sending message:", error));
         });
+
+        updateEmptyMessage();
     </script>
 </body>
 </html>
